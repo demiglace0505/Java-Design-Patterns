@@ -283,3 +283,108 @@ public class Test {
 	}
 }
 ```
+
+## Template Method
+
+The template method is a behavioral pattern that provides a base template method that should be used by child clients. The child classes can override certain methods, but they should use the template method. In the following example, we have the DataRenderer class that has the methods readData() processData() and render(). We want to render the data in the same way no matter which format the data comes in. The child classes will be able to override the readData() and processData() methods, but the render() method will be provided as the base template.
+
+The readData() and processData() will be abstract methods that need to be overriden by the child classes. The render() method will know how to invoke the other methods. Afterwards, we create the child classes that provides the implementation for readData() and processData().
+
+```java
+public abstract class DataRenderer {
+	public void render() {
+		String data = readData();
+		String processedData = processData(data);
+		System.out.println(processedData);
+	}
+
+	public abstract String readData();
+
+	public abstract String processData(String data);
+}
+
+public class XMLDataRenderer extends DataRenderer {
+	@Override
+	public String readData() {
+		return "XML Data";
+	}
+
+	@Override
+	public String processData(String data) {
+		return "Processed Data " + data;
+	}
+}
+
+public class CSVDataRenderer extends DataRenderer {
+	@Override
+	public String readData() {
+		return "CSV Data";
+	}
+
+	@Override
+	public String processData(String data) {
+		return "Processed Data " + data;
+	}
+}
+```
+
+We can test the above using the following test class
+
+```java
+public class Test {
+	public static void main(String[] args) {
+		DataRenderer renderer = new XMLDataRenderer();
+		renderer.render();
+
+		DataRenderer renderer2 = new CSVDataRenderer();
+		renderer2.render();
+	}
+}
+```
+
+```
+Processed Data XML Data
+Processed Data CSV Data
+```
+
+## Adapter
+
+The adapter pattern is used when two objects are using each other. In the example below, we have the WeatherFinderImpl class which has the method find(city). The WeatherUI class on the other hand needs to invoke the WeatherFinder class, but it only has the zip code of the city. This is where WeatherAdapter comes into play with looking up the city according to the zip code, and then invoke the WeatherFinder class and take the results back to WeatherUI.
+
+```java
+public interface WeatherFinder {
+	int find(String city);
+}
+
+public class WeatherFinderImpl implements WeatherFinder {
+	@Override
+	public int find(String city) {
+		return 32;
+	}
+}
+
+public class WeatherAdapter {
+	public int findTemperature(int zipcode) {
+		String city = null;
+		if (zipcode == 19406) {
+			city = "King of Prussia";
+		}
+
+		WeatherFinder finder = new WeatherFinderImpl();
+		int temperature = finder.find(city);
+		return temperature;
+	}
+}
+
+public class WeatherUI {
+	public void showTemperature(int zipcode) {
+		WeatherAdapter adapter = new WeatherAdapter();
+		System.out.println(adapter.findTemperature(zipcode));
+	}
+
+	public static void main(String[] args) {
+		WeatherUI ui = new WeatherUI();
+		ui.showTemperature(19406);
+	}
+}
+```
