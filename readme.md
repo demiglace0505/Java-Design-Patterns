@@ -1,5 +1,23 @@
 # Java Design Patterns
 
+- [Java Design Patterns](#java-design-patterns)
+  - [Basics](#basics)
+    - [Pattern](#pattern)
+    - [Pattern Catalogs](#pattern-catalogs)
+      - [GOF Pattern Catalog](#gof-pattern-catalog)
+      - [JEE Pattern Catalog](#jee-pattern-catalog)
+  - [Singleton Pattern](#singleton-pattern)
+      - [Eager Initialization](#eager-initialization)
+      - [Multithreading](#multithreading)
+      - [Serialization and Deserialization](#serialization-and-deserialization)
+  - [Factory](#factory)
+  - [Abstract Factory](#abstract-factory)
+  - [Template Method](#template-method)
+  - [Adapter Pattern](#adapter-pattern)
+  - [Flyweight Pattern](#flyweight-pattern)
+  - [Command Pattern](#command-pattern)
+-
+
 ## Basics
 
 ### Pattern
@@ -16,7 +34,7 @@ It is subdivided into Creational Patterns, Structural Patterns, Behavioral Patte
 
 Every java application is organized into multiple logical layers. The **Data Access layer** is for performing database operations. **Services layer** is where the business logic goes. **Presentation layer** presents the application to the client. **Integration layer** is responsible for communication with other applications. Each layer uses services provided by the other layers.
 
-## Singleton
+## Singleton Pattern
 
 Object creation pattern that allows our application to create **ONE AND ONLY ONE** instance of a class. Example of a singleton object is a logger and the data source class. To implement the Singleton pattern, we follow the following steps:
 
@@ -347,7 +365,7 @@ Processed Data XML Data
 Processed Data CSV Data
 ```
 
-## Adapter
+## Adapter Pattern
 
 The adapter pattern is used when two objects are using each other. In the example below, we have the WeatherFinderImpl class which has the method find(city). The WeatherUI class on the other hand needs to invoke the WeatherFinder class, but it only has the zip code of the city. This is where WeatherAdapter comes into play with looking up the city according to the zip code, and then invoke the WeatherFinder class and take the results back to WeatherUI.
 
@@ -389,7 +407,7 @@ public class WeatherUI {
 }
 ```
 
-## Flyweight
+## Flyweight Pattern
 
 The Flyweight pattern is a structural design pattern. Instead of creating a large number of similar objects, we can reuse some objects to save memory. In the example, we will be working on a paint app that allows users to draw different shapes. The Shape interface with a draw() method will be overriden by different classes. If we need to create circles and rectangles, we will need to set the radius, length etc. for each shape we want to create. Using the flyweight pattern, we can create a single Circle and Rectangle instead.
 
@@ -526,4 +544,140 @@ public class Rectangle extends Shape {
 		this.label = label;
 	}
 }
+```
+
+Afterwards we create the ShapeFactory factory class that will cache objects using a hashmap allowing us to reuse objects. The factory checks if a shape is already present in the hashmap, if not, it will instantiate and cache it. We then implement the factory class to our PaintApp.
+
+```java
+public class ShapeFactory {
+	private static Map<String, Shape> shapes = new HashMap<>();
+
+	public static Shape getShape(String type) {
+		Shape shape = null;
+		if (shapes.get(type) != null) {
+			shape = shapes.get(type);
+		} else {
+			if (type.equals("circle")) {
+				shape = new Circle();
+			} else if (type.equals("rectangle")) {
+				shape = new Rectangle();
+			}
+			shapes.put(type, shape);
+		}
+		return shape;
+	}
+}
+
+public class PaintApp {
+	public void render(int numberOfShapes) {
+		Shape shape = null;
+
+		for (int i = 1; i <= numberOfShapes; i++) {
+			if (i%2==0) {
+				shape = ShapeFactory.getShape("circle");
+				shape.draw(i, "red", "white");
+			} else {
+				shape = ShapeFactory.getShape("rectangle");
+				shape.draw(i, i+i, "dotted");
+			}
+		}
+	}
+}
+```
+
+## Command Pattern
+
+The Command design pattern is a behavioral pattern from the GOF. It is used to encapsulate a request as an object and pass it into an invoker. The invoker does not know how to service the request from the client, and will take the command to the receiver who knows how to perform the action. The advantage of the Command Pattern is that the invoker is decoupled from the receiver. The 5 actors in a Command design pattern are:
+
+1. Command
+2. Client
+3. Invoker
+4. ConcreteCommand
+5. Receiver
+
+In the following example, we have a Person class that uses the Television using a RemoteControl. The Person is the client who wants to execute the on() and off() command of the Television. The RemoteControl is the invoker the Command classes OnCommand and OffCommand will implement the interface Command with an execute() method. The Person serves as the client, Television is the receiver, RemoteControl as the invoker, Command is the command while OnCommand and OffCommand are the concrete commands.
+
+We first start with creating the receiver Television, which knows how to perform the on() and off() actions. We then proceed with writing the command Command interface, which will be implemented by the concrete commands. To pass the Television to our concrete command, we need to define a constructor. The final class is the invoker RemoteController which has a private field for a Command including a getter and setter method.
+
+```java
+public class Television {
+	public void on() {
+		System.out.println("Television switched on");
+	}
+
+	public void off() {
+		System.out.println("Television switched off");
+	}
+}
+
+public interface Command {
+	public void execute();
+}
+
+
+public class OnCommand implements Command{
+	Television television;
+
+	public OnCommand(Television television) {
+		this.television = television;
+	}
+
+	@Override
+	public void execute() {
+		television.on();
+	}
+}
+
+public class OffCommand implements Command{
+	Television television;
+
+	public OffCommand(Television television) {
+		this.television = television;
+	}
+
+	@Override
+	public void execute() {
+		television.off();
+	}
+}
+
+public class RemoteControl {
+	private Command command;
+
+	public void pressButton() {
+		command.execute();
+	}
+
+  public Command getCommand() {
+		return command;
+	}
+
+	public void setCommand(Command command) {
+		this.command = command;
+	}
+}
+```
+
+To test, we need to create the client Person class. We create an instance of the receiver Television and invoker RemoteControl. We then instantiate the concrete command wherein we pass the receiver Television to it. Afterwards, we pass this concrete command to the invoker RemoteControl
+
+```java
+public class Person {
+	public static void main(String[] args) {
+		Television television = new Television();
+		RemoteControl remoteControl = new RemoteControl();
+
+		OnCommand on = new OnCommand(television);
+		remoteControl.setCommand(on);
+		remoteControl.pressButton();
+
+		OffCommand off = new OffCommand(television);
+		remoteControl.setCommand(off);
+		remoteControl.pressButton();
+	}
+}
+```
+
+```
+Television switched on
+Television switched off
 ```
