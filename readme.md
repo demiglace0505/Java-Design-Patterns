@@ -388,3 +388,142 @@ public class WeatherUI {
 	}
 }
 ```
+
+## Flyweight
+
+The Flyweight pattern is a structural design pattern. Instead of creating a large number of similar objects, we can reuse some objects to save memory. In the example, we will be working on a paint app that allows users to draw different shapes. The Shape interface with a draw() method will be overriden by different classes. If we need to create circles and rectangles, we will need to set the radius, length etc. for each shape we want to create. Using the flyweight pattern, we can create a single Circle and Rectangle instead.
+
+The PaintApp class contains a method that takes in how many number of shapes the user wants.
+
+```java
+public interface Shape {
+	public void draw();
+}
+
+public class Circle implements Shape {
+	private String label;
+	private int radius;
+	private String fillColor;
+	private String lineColor;
+
+	public Circle() {
+		label ="Circle";
+	}
+
+	@Override
+	public void draw() {
+		System.out.println("Drawing: " + label + radius + fillColor + lineColor);
+	}
+}
+
+public class Rectangle implements Shape {
+	private String label;
+	private int length;
+	private int breadth;
+	private String fillStyle;
+
+	public Rectangle() {
+		label = "rectangle";
+	}
+
+	@Override
+	public void draw() {
+		System.out.println("Drawing: " + label + length + breadth + fillStyle);
+	}
+}
+```
+
+The following PaintApp class does not implement flyweight pattern yet. Everytime we are creating a Circle or Rectangle, a new object is being instantiated. This consumes memory.
+
+```java
+public class PaintApp {
+	public void render(int numberOfShapes) {
+		Shape[] shapes = new Shape[numberOfShapes + 1];
+
+		for (int i = 1; i <= numberOfShapes; i++) {
+			if (i%2==0) {
+				shapes[i] = new Circle();
+				((Circle) shapes[i]).setRadius(i);
+				((Circle) shapes[i]).setLineColor("red");
+				((Circle) shapes[i]).setFillColor("white");
+				shapes[i].draw();
+			} else {
+				shapes[i] = new Rectangle();
+				((Rectangle) shapes[i]).setLength(i);
+				((Rectangle) shapes[i]).setBreadth(i+i);
+				((Rectangle) shapes[i]).setFillStyle("dotted");
+				shapes[i].draw();
+			}
+		}
+	}
+}
+
+public class Test {
+	public static void main(String[] args) {
+		PaintApp app = new PaintApp();
+		app.render(10);
+	}
+}
+```
+
+To implement the flyweight pattern, we can follow steps:
+
+1. Separate the extrinsic state
+2. Pass state as parameters
+3. Create a factory class
+
+We refactor the Circle and Rectangle class to extract the extrinsic state. All fields except label are extrinsic in this case. We will pass these as parameters to the draw() method of our interface, which we change to an abstract class at this point.
+
+```java
+public abstract class Shape {
+	public void draw(int radius, String fillColor, String lineColor) {
+
+	}
+
+	public void draw(int length, int breadth, String fillStyle) {
+
+	}
+}
+
+public class Circle extends Shape {
+	private String label;
+
+	public Circle() {
+		label ="Circle";
+	}
+
+	@Override
+	public void draw(int radius, String fillColor, String lineColor) {
+		System.out.println("Drawing: " + label + radius + fillColor + lineColor);
+	}
+
+	public String getLabel() {
+		return label;
+	}
+
+	public void setLabel(String label) {
+		this.label = label;
+	}
+}
+
+public class Rectangle extends Shape {
+	private String label;
+
+	public Rectangle() {
+		label = "rectangle";
+	}
+
+	@Override
+	public void draw(int length, int breadth, String fillStyle) {
+		System.out.println("Drawing: " + label + length + breadth + fillStyle);
+	}
+
+	public String getLabel() {
+		return label;
+	}
+
+	public void setLabel(String label) {
+		this.label = label;
+	}
+}
+```
