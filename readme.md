@@ -16,6 +16,18 @@
   - [Adapter Pattern](#adapter-pattern)
   - [Flyweight Pattern](#flyweight-pattern)
   - [Command Pattern](#command-pattern)
+  - [Decorator Pattern](#decorator-pattern)
+  - [Dependency Injection and Inversion of Control](#dependency-injection-and-inversion-of-control)
+    - [Field Level Dependency Injection](#field-level-dependency-injection)
+    - [Setter Injection](#setter-injection)
+    - [Constructor Injection](#constructor-injection)
+  - [Java EE Basics](#java-ee-basics)
+      - [Advantages](#advantages)
+      - [Layers and Patterns](#layers-and-patterns)
+  - [Intercepting Filter](#intercepting-filter)
+  - [Front Controller](#front-controller)
+  - [MVC](#mvc)
+  - [MVC Using Spring Boot](#mvc-using-spring-boot)
 -
 
 ## Basics
@@ -680,4 +692,493 @@ public class Person {
 ```
 Television switched on
 Television switched off
+```
+
+## Decorator Pattern
+
+The Decorator Pattern is a behavioral pattern that adds additional functionality to an object dynamically at runtime. A decorator wraps an object with additional behavior without affecting other objects of the same type. One example from the java library is the io. In this case, both BufferedReader and FileReader implements the Reader interface.
+
+```java
+new BufferedReader(new FileReader(..));
+```
+
+In the following example, we have a Pizza component and the PlainPizza concrete component which implements the Pizza component and can be decorated. We can dynamically add toppings to the pizza at runtime using a PizzaDecorator decorator that will be extended by the concrete decorators VeggiePizzaDecorator and CheesePizzaDecorator. The PizzaDecorator class implements Pizza as well, and should have a reference to the Pizza itself on which we invoke the bake() method. The concrete decorator child classes has a constructor that calls the super PizzaDecorator class.
+
+```java
+public interface Pizza {
+	public void bake();
+}
+
+public class PlainPizza implements Pizza {
+	@Override
+	public void bake() {
+		System.out.println("Baking Plain Pizza");
+	}
+}
+
+public class PizzaDecorator implements Pizza {
+	private Pizza pizza;
+	public PizzaDecorator(Pizza pizza) {
+		this.pizza = pizza;
+	}
+
+	@Override
+	public void bake() {
+		pizza.bake();
+	}
+}
+
+public class VeggiePizzaDecorator extends PizzaDecorator {
+	public VeggiePizzaDecorator(Pizza pizza) {
+		super(pizza);
+	}
+
+	public void bake() {
+		super.bake();
+		System.out.println("Adding Veggie Toppings");
+	}
+}
+
+public class CheesePizzaDecorator extends PizzaDecorator {
+	public CheesePizzaDecorator(Pizza pizza) {
+		super(pizza);
+	}
+
+	public void bake() {
+		super.bake();
+		System.out.println("Adding Cheese Toppings");
+	}
+}
+```
+
+We can test by wrapping the decorator. We can wrap decorators on one another as well.
+
+```java
+public class PizzaShop {
+	public static void main(String[] args) {
+		Pizza pizza = new VeggiePizzaDecorator(new CheesePizzaDecorator(new PlainPizza()));
+		pizza.bake();
+	}
+}
+```
+
+```
+Baking Plain Pizza
+Adding Cheese Toppings
+Adding Veggie Toppings
+```
+
+## Dependency Injection and Inversion of Control
+
+If we have two implementations of an interface, for example A AImpl and B BImpl. If AImpl needs an instance of B, or **HAS A** relationship with B, typically we would need to create an instance of BImpl and use it inside AImpl. This is called **Inversion of Control** wherein instead of us instantiating this, we can delegate the responsibility of object creation and injection into AImpl to Spring Framework. **Dependency Injection** is a mechanism of providing dependency to a class dynamically at runtime by creating an object of that type.
+
+The manual way of doing dependency injection is the following: In our CustomerImpl class, we need to define a field for the CreditCardImpl.
+
+```java
+public interface CreditCard {
+	public void makePayment();
+}
+
+public class CreditCardImpl implements CreditCard {
+	@Override
+	public void makePayment() {
+		System.out.println("Payment Made");
+	}
+}
+
+public interface Customer {
+	public void pay();
+}
+
+public class CustomerImpl implements Customer {
+	CreditCard creditCard = new CreditCardImpl();
+
+	@Override
+	public void pay() {
+		creditCard.makePayment();
+	}
+}
+```
+
+### Field Level Dependency Injection
+
+To invert the control of object creation to Spring, we can use autowiring to our creditCard field without having to instantiate it. Once marked with **@Autowired**, Spring will search for the CreditCard interface / CreditCardImpl class and create an object and inject it to CustomerImpl. Before Spring does so, we need to mark the CreditCardImpl class with **@Component** annotation which tells Spring that at runtime, the class can be created to be used in other classes. We also mark our Customerimpl with @Component since we will be using it in our test class later on.
+
+```java
+@Component
+public class CreditCardImpl implements CreditCard {
+	@Override
+	public void makePayment() {
+		System.out.println("Payment Made");
+	}
+}
+
+@Component
+public class CustomerImpl implements Customer {
+	@Autowired
+	CreditCard creditCard;
+
+	@Override
+	public void pay() {
+		creditCard.makePayment();
+	}
+}
+```
+
+```java
+@SpringBootTest
+class IocApplicationTests {
+	@Autowired
+	Customer customer;
+
+	@Test
+	public void testPayment() {
+		customer.pay();
+	}
+}
+```
+
+```
+Payment Made
+```
+
+What happens is when the Spring Container launches, it will scan through our packages and subpackages for classes that are marked with @Component, create instances of those classes, and inject those to wherever we have the @Autowired annotation. In this case, it will first create the CreditCardImpl and inject it to CustomerImpl, and the Customer will be injected to the test class.
+
+### Setter Injection
+
+We can inject the CreditCard to the CustomerImpl class using setter injection.
+
+```java
+@Component
+public class CustomerImpl implements Customer {
+	private	CreditCard creditCard;
+
+	@Override
+	public void pay() {
+		getCreditCard().makePayment();
+	}
+
+	public CreditCard getCreditCard() {
+		return creditCard;
+	}
+
+	@Autowired
+	public void setCreditCard(CreditCard creditCard) {
+		this.creditCard = creditCard;
+	}
+}
+```
+
+### Constructor Injection
+
+To do constructor injection, we need to define a constructor method
+
+```java
+@Component
+public class CustomerImpl implements Customer {
+	private	CreditCard creditCard;
+
+	@Autowired
+	CustomerImpl(CreditCard creditCard) {
+		this.creditCard = creditCard;
+	}
+}
+```
+
+## Java EE Basics
+
+When we develop huge applications, they are divided into modules. Each module will be divided into Data Access Layer, Service Layer, Presentation Layer, Integration Layer. **Data Access Layer** is an independent layer that is responsible for performing CRUD oeprations against the data store. The services provided by the data access layer is used by the **Service Layer** where our business logic resides. These services in turn are used by the presentation layer and integration layer. The **Presentation Layer** is responsible for generating the UI. The **Integration Layer** allows our applications to acceess other applications and vice versa and is typically made of web services.
+
+There are 10 interfaces and classes that fall across these layers. The Model Class represents our domain model. The **DAO** Interface and the **DAOImpl** is in the DAL. The **Service** Interface and **ServiceImpl** is in the Service Layer which will use the services provided by the DAO. The **Controller** class makes use of the services by the SL. **Utility Classes** are responsible for performing special operations across layers. The **Validator Class** are used to validate data. The **Service Provider** or Consumers, typically web services, are under the IL.
+
+#### Advantages
+
+1. Simplicity
+2. Separation of Concerns
+3. Maintainability
+
+#### Layers and Patterns
+
+**Presentation Layer**
+
+> Intercepting Filter
+> Front Controller
+> MVC
+> **Service Layer**
+> Business Delegate
+> Business Object
+> **Data Access Layer**
+> Data Access Object
+
+## Intercepting Filter
+
+When we create enterprise applications that receives request from clients, these requests are handled by Request Handlers. Sometimes we need to process these requests before reaching the target, examples are uncompressing, authenticating, decrypting, logging etc. Instead of directly handling to the target component, the Intercepting Filter will be handling the request and do processing before the request reaches the target.
+
+In the example, we will be working with a Bad Browser Filter wherein our application only supports Chrome and should reject requests from other browsers. The filter will verify if the request comes from Chrome.
+
+We start with creating the Target servlet class, and then the filter class that will filter the request before reaching the Target. If the user is using chrome, the request will reach the target, if not the request will go to badBrowser.jsp
+
+```java
+@WebServlet("/homeServlet")
+public class HomeServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+
+	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		request.setAttribute("username", "Doge");
+		RequestDispatcher dispatcher = request.getRequestDispatcher("home.jsp");
+		dispatcher.forward(request, response);
+	}
+}
+
+@WebFilter("/*")
+public class UserAgentFilter implements Filter {
+	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+			throws IOException, ServletException {
+		String userAgentHeader = ((HttpServletRequest) request).getHeader("User-Agent");
+		if (userAgentHeader.contains("Chrome")) {
+			// send to the target object
+			chain.doFilter(request, response);
+		} else {
+			RequestDispatcher dispatcher = request.getRequestDispatcher("badBrowser.jsp");
+			dispatcher.forward(request, response);
+		}
+	}
+  ...
+}
+```
+
+In the jsp page, we can read the data we have set using jsp tags
+
+```jsp
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Home Page</title>
+</head>
+<body>
+Welcome
+<%request.getAttribute("username");%>
+</body>
+</html>
+```
+
+## Front Controller
+
+When an end user accesses our web application, if there is no centralized request handling mechanism, each view will have its own processing logic and view navigation logic. The problem with this approach is duplicated business logic across views. The Front Controller pattern will handle the business processing and the view for us. When a request comes in, the request will go to the Front Controller, which invokes the appropriate business logic before navigating to the next view. The Front Controller will use the Command Pattern to make use of a CommandHelper to know which special processing has to be executed. Once it executes, the Front Controller will navigate to the next view using a Dispatcher component.
+
+We start with creating the index.jsp.
+
+```jsp
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+	pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Home Page</title>
+</head>
+<body>
+	<a href="viewStudentDetails.do">View Student Details</a>
+</body>
+</html>
+```
+
+We will be using the Command Pattern. The application will be sending the student details back through the Command interface and ViewStudentCommand concrete command. Within this command, we create the StudentVo value object. A **Value Object** is a java bean that will carry the information across the Java EE layers. In this case, the StudentVo will be sent to the next view in the request object. We return the jsp page showStudentDetails.
+
+```java
+public interface Command {
+	public String execute(HttpServletRequest request, HttpServletResponse response);
+}
+
+public class ViewStudentCommand implements Command {
+	@Override
+	public String execute(HttpServletRequest request, HttpServletResponse response) {
+		StudentVo vo = new StudentVo(1, "Doge");
+		request.setAttribute("studentDetails", vo);
+		return "showStudentDetails";
+	}
+}
+
+public class StudentVo {
+	private int id;
+	private String name;
+
+	StudentVo(int id, String name) {
+		this.id = id;
+		this.name = name;
+	}
+```
+
+We then proceed on writing the CommandHelper which returns a Command. Afterwards we can write the FrontController itself. We are dynamically retrieving the command by passing the requestURI to our CommandHelper which retrieves the command based on URI. The FrontController then executes the command by passing in the request and response. That command will perform the action of creating a StudentVo, set the details onto the request and return the next view showStudentDetails. Finally, we create the Dispatcher which will forward the user to the next view
+
+```java
+public class CommandHelper {
+	public Command getCommand(String requestURI) {
+		if (requestURI.contains("viewStudentDetails.do")) {
+			return new ViewStudentCommand();
+		}
+		return null;
+	}
+}
+
+@WebServlet("/*.do")
+public class FrontController extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+
+	protected void doGet(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+		String requestURI = request.getRequestURI();
+		CommandHelper commandHelper = new CommandHelper();
+		Command command = CommandHelper.getCommand(requestURI);
+		command.execute(request, response);
+
+		response.getWriter().append("Served at: ").append(request.getContextPath());
+	}
+}
+
+@WebServlet("*.do")
+public class FrontController extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+
+	protected void doGet(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+		String requestURI = request.getRequestURI();
+		CommandHelper commandHelper = new CommandHelper();
+		Command command = commandHelper.getCommand(requestURI);
+		String view = command.execute(request, response);
+		Dispatcher dispatcher = new Dispatcher();
+		dispatcher.dispatch(request, response, view);
+	}
+}
+
+	private String mapPageToView(String view) {
+		if (view.equals("showStudentDetails")) {
+			return "viewStudentDetails.jsp";
+		}
+		return null;
+	}
+}
+```
+
+And the view for viewStudentDetails
+
+```jsp
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+	pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Student Details</title>
+</head>
+<body>
+	<jsp:useBean id="studentDetails"
+		type="com.demiglace.patterns.frontcontroller.StudentVo"
+		scope="request"></jsp:useBean>
+	Student Id:
+	<jsp:getProperty property="id" name="studentDetails" />
+	Student Name:
+	<jsp:getProperty property="name" name="studentDetails" />
+</body>
+</html>
+```
+
+## MVC
+
+MVC is a design pattern that splits the web layer into Model, View and Controller. The **Model** represents the current state of the application and does most of the business logic, and can connect to the database if needed. The **View** is responsible for displaying the current model to the end user. The **Controller** acts as the glue between the Model and View, such as selecting the appropriate model to serve the appropriate view. The model is represented by a java class, View a JSP, and Controller a servlet.
+
+We start with creating the view.
+
+```html
+<body>
+	<h3>Enter two number:</h3>
+	<form action="averageController" method="post">
+		Number 1 : <input name="number1"/></br>
+		Number 2 : <input name="number2"/></br>
+		<input type="submit"/>
+	</form>
+</body>
+```
+
+Afterwards we create the Model which will represent the data and actions to be performed. And then the controller
+
+```java
+public class AverageModel {
+	public int calculateAverage(int num1, int num2) {
+		return (num1+num2)/2;
+	}
+}
+
+@WebServlet("/averageController")
+public class AverageController extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+
+	protected void doPost(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+		int num1 = Integer.parseInt(request.getParameter("number1"));
+		int num2 = Integer.parseInt(request.getParameter("number2"));
+
+		AverageModel model = new AverageModel();
+		int result = model.calculateAverage(num1, num2);
+		request.setAttribute("result", result);
+
+		RequestDispatcher requestDispatcher = request.getRequestDispatcher("result.jsp");
+		requestDispatcher.forward(request, response);
+	}
+}
+```
+
+We then send the result to the next view
+
+```jsp
+<body>
+<%
+int result = (Integer) request.getAttribute("result");
+out.println("Average of two numbers is: " + result);
+%>
+</body>
+```
+
+## MVC Using Spring Boot
+
+With Spring Boot MVC, we can start with the Controller. We mark our controller class with **@Controller** annotation. We map helloMvc.jsp to /hello using the **@RequestMapping** annotation. Using a ModelMap parameter from Spring, we can send a model to the view.
+
+```java
+@Controller
+public class HelloController {
+	@RequestMapping("/hello")
+	public String hello(ModelMap modelMap ) {
+		modelMap.addAttribute("msg", "Doge");
+		return "helloMvc";
+	}
+}
+```
+
+Afterwards we proceed on creating the view. We also need to configure the prefix and suffix for the View Resolver in application.properties. The context-path will make our application accessible at `http://localhost:8080/mvc/hello`
+
+```jsp
+<title>MVC Pattern</title>
+</head>
+<body>
+	Hello MVC by ${msg}
+</body>
+```
+
+```
+spring.mvc.view.prefix=/WEB-INF/jsps/
+spring.mvc.view.suffix=.jsp
+server.servlet.context-path=/mvc
+```
+
+We also need to add the embedded jasper dependency which is needed to serve JSP pages from a JAR file since Spring Boot automatically runs on an embedded tomcat server.
+
+```xml
+		<dependency>
+			<groupId>org.apache.tomcat.embed</groupId>
+			<artifactId>tomcat-embed-jasper</artifactId>
+			<scope>provided</scope>
+		</dependency>
 ```
