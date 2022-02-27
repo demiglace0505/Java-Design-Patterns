@@ -28,6 +28,9 @@
   - [Front Controller](#front-controller)
   - [MVC](#mvc)
   - [MVC Using Spring Boot](#mvc-using-spring-boot)
+  - [Data Access Object DAO Pattern](#data-access-object-dao-pattern)
+  - [Proxy Pattern](#proxy-pattern)
+  - [Prototype Pattern](#prototype-pattern)
 -
 
 ## Basics
@@ -1181,4 +1184,219 @@ We also need to add the embedded jasper dependency which is needed to serve JSP 
 			<artifactId>tomcat-embed-jasper</artifactId>
 			<scope>provided</scope>
 		</dependency>
+```
+
+## Data Access Object DAO Pattern
+
+The DAO Pattern is a Data Access Layer pattern that seprates the database related code. All the logic that has to do wtih database operations should be handled by the DAO. The DAO implementation will know how to connect and execute operations against a database.
+We start by creating the EmployeeDAO interface and Employee model class. In the EmployeeDAOImpl, we can write out the implementation of the create() method. We also need to use the **@Repository** Spring annotation.
+
+```java
+public interface EmployeeDAO {
+	public void create(Employee employee);
+}
+
+public class Employee {
+	private int id;
+	private String name;
+
+@Repository
+public class EmployeeDAOImpl implements EmployeeDAO {
+	@Autowired
+	JdbcTemplate jdbcTemplate;
+
+	@Override
+	public void create(Employee employee) {
+		String sql = "INSERT INTO employee values(?,?)";
+		jdbcTemplate.update(sql, employee.getId(), employee.getName());
+	}
+}
+```
+
+To test, we first need to configure the data source information at application.properties and then write out the test class.
+
+```
+spring.datasource.url=jdbc:mysql://localhost:3006/mydb
+spring.datasource.username=root
+spring.datasource.password=1234
+```
+
+```java
+@SpringBootTest
+class DaoApplicationTests {
+	@Autowired
+	EmployeeDAO dao;
+
+	@Test
+	void testCreate() {
+		Employee employee = new Employee();
+		employee.setId(123);
+		employee.setName("Doge");
+		dao.create(employee);
+	}
+}
+```
+
+## Proxy Pattern
+
+We can implement lazy loading using the Virtual Proxy pattern. To do that, we first define a Customer interface and its implementation that will only fetch the Customer details. The CustomerProxyImpl will be the proxy class for CustomerImpl which will implement the same interface but will be responsible for loading the order details. CustomerImpl will have private fields for id and a list of orders, and will also contain getters and setter mehotds for these fields.
+
+```java
+public interface Customer {
+	public int getId();
+	public List<Order> getOrders();
+}
+
+public class Order {
+	private int id;
+	private String productName;
+	private int quantity;
+
+public class CustomerImpl implements Customer {
+	private int id;
+	private List<Order> orders;
+```
+
+At this point we can create the test class, which will only return the id for now and null for the orders.
+
+```java
+public class Test {
+	public static void main(String[] args) {
+		Customer customer = new CustomerImpl();
+		System.out.println(customer.getId());
+		System.out.println(customer.getOrders());
+	}
+}
+```
+
+We then proceed on writing the CustomerProxyImpl class. In the getOrders method, we are hardcoding a list of orders.
+
+```java
+public class CustomerProxyImpl implements Customer {
+	CustomerImpl customer = new CustomerImpl();
+
+	@Override
+	public int getId() {
+		return customer.getId();
+	}
+
+	@Override
+	public List<Order> getOrders() {
+		ArrayList<Order> orders = new ArrayList<Order>();
+		Order order1 = new Order();
+		order1.setId(1);
+		order1.setProductName("Welkin moon");
+		order1.setQuantity(100);
+		orders.add(order1);
+
+		Order order2 = new Order();
+		order2.setId(2);
+		order2.setProductName("Primogems");
+		order2.setQuantity(160);
+		orders.add(order2);
+		return orders;
+	}
+}
+```
+
+In the test class, instead of using CustomerImpl, we can use CustomerProxyImpl instead. This time around, we won't be getting null for getOrders().
+
+```java
+public class Test {
+	public static void main(String[] args) {
+		Customer customer = new CustomerProxyImpl();
+		System.out.println(customer.getId());
+		System.out.println(customer.getOrders());
+	}
+}
+```
+
+## Prototype Pattern
+
+Prototype is a creational design pattern that uses an existing object to create new objects. In this instance, we are working on a Gaming App that is accessed by multiple players. Instead of recreating the Gaming App when accessed, we can have a prototype object ready initialized with all the state and data. Spring supports both Prototype and Singleton. In this example, we have a Game class which implements the Cloneable interface.
+
+The clone() method will return a copy of the object. The cloned object will have the same object reference to Membership as the first. This is doing a **shallow copy**.
+
+```java
+public class Game implements Cloneable {
+	private int id;
+	private String name;
+	private Membership membership;
+
+	@Override
+	protected Game clone() throws CloneNotSupportedException {
+		return (Game) super.clone();
+	}
+
+	@Override
+	public String toString() {
+		return "Game [id=" + id + ", name=" + name + ", membership=" + getMembership() + "]";
+	}
+  ...
+}
+
+public class Test {
+	public static void main(String[] args) throws CloneNotSupportedException {
+		Game game1 = new Game();
+		game1.setId(1);
+		game1.setName("Genshin Impact");
+		game1.setMembership(new Membership());
+
+		Game game2 = game1.clone();
+		System.out.println(game1);
+		System.out.println(game2);
+	}
+}
+```
+
+```
+Game [id=1, name=Genshin Impact, membership=com.demiglace.patterns.prototype.Membership@6f2b958e]
+Game [id=1, name=Genshin Impact, membership=com.demiglace.patterns.prototype.Membership@6f2b958e]
+```
+
+We can do a deep clone by instantiating the new Membership() inside the clone() method
+
+```java
+	@Override
+	protected Game clone() throws CloneNotSupportedException {
+		Game game = (Game) super.clone();
+		game.setMembership(new Membership());
+		return game;
+	}
+```
+
+Or by creating a Copy Constructor:
+
+```java
+	Game(Game game) {
+		this.id = game.id;
+		this.name = game.name;
+		this.membership = new Membership();
+	}
+```
+
+And testing it:
+
+```java
+public class Test {
+	public static void main(String[] args) throws CloneNotSupportedException {
+		Game game1 = new Game();
+		game1.setId(1);
+		game1.setName("Genshin Impact");
+		game1.setMembership(new Membership());
+
+		Game game2 = game1.clone();
+		System.out.println(game1);
+		System.out.println(game2);
+
+		Game game3 = new Game(game1);
+		System.out.println(game3);
+	}
+}
+```
+
+```
+Game [id=1, name=Genshin Impact, membership=com.demiglace.patterns.prototype.Membership@6f2b958e]
+Game [id=1, name=Genshin Impact, membership=com.demiglace.patterns.prototype.Membership@5e91993f]
+Game [id=1, name=Genshin Impact, membership=com.demiglace.patterns.prototype.Membership@1c4af82c]
 ```

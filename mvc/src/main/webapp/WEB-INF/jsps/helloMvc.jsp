@@ -9,4 +9,4 @@
 <body>
 	Hello MVC by ${msg}
 </body>
-</html>
+</html
