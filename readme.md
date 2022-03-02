@@ -31,6 +31,9 @@
   - [Data Access Object DAO Pattern](#data-access-object-dao-pattern)
   - [Proxy Pattern](#proxy-pattern)
   - [Prototype Pattern](#prototype-pattern)
+  - [Builder Pattern](#builder-pattern)
+  - [Facade Pattern](#facade-pattern)
+  - [MVC and Business Delegate](#mvc-and-business-delegate)
 -
 
 ## Basics
@@ -1400,3 +1403,172 @@ Game [id=1, name=Genshin Impact, membership=com.demiglace.patterns.prototype.Mem
 Game [id=1, name=Genshin Impact, membership=com.demiglace.patterns.prototype.Membership@5e91993f]
 Game [id=1, name=Genshin Impact, membership=com.demiglace.patterns.prototype.Membership@1c4af82c]
 ```
+
+## Builder Pattern
+
+The following example highlights the problem the Builder pattern is trying to solve. If we instantiate an HttpClient object and we don't need some parameters, we need to pass in nulls. This results in unreadable code. The builder pattern helps us to create an object without all fields.
+
+```java
+public class HttpClient {
+	private String method;
+	private String url;
+	private String userName;
+	private String password;
+	private String headers;
+	private String body;
+
+	public HttpClient(String method, String url, String userName, String password, String headers, String body) {
+		super();
+		this.method = method;
+		this.url = url;
+		this.userName = userName;
+		this.password = password;
+		this.headers = headers;
+		this.body = body;
+	}
+}
+
+public class Test {
+	public static void main(String[] args) {
+		HttpClient uglyHttpClient = new HttpClient("GET", "http://test.com", null, null, null, null);
+	}
+}
+```
+
+The builder pattern typically has a Builder interface or abstract class. The ConcreteBuilder will then implement that and provide various methods required to build an object. This makes it easy for the end client to create an instance of the object just by configuring the needed properties.
+
+We will be creating a public static inner class, which will have a copy of the properties of the actual class. For some of the properties, we will have methods and each method will return an instance of the same class back that allows us to chain methods. The last method is the **build()** method which returns a new HttpClient object wherein we pass **this** as a parameter to the constructor.
+
+```java
+public class HttpClient {
+	private String method;
+	private String url;
+	private String userName;
+	private String password;
+	private String headers;
+	private String body;
+
+	public HttpClient(HttpClientBuilder httpClientBuilder) {
+		this.method = httpClientBuilder.method;
+		this.url = httpClientBuilder.url;
+		this.userName = httpClientBuilder.userName;
+		this.password = httpClientBuilder.password;
+		this.headers = httpClientBuilder.headers;
+		this.body = httpClientBuilder.body;
+	}
+
+	public static class HttpClientBuilder {
+		private String method;
+		private String url;
+		private String userName;
+		private String password;
+		private String headers;
+		private String body;
+
+		public HttpClientBuilder method(String method) {
+			this.method = method;
+			return this;
+		}
+
+		public HttpClientBuilder url(String url) {
+			this.url = url;
+			return this;
+		}
+
+		public HttpClientBuilder secure(String userName, String password) {
+			this.userName = userName;
+			this.password = password;
+			return this;
+		}
+
+		public HttpClientBuilder headers(String headers) {
+			this.headers = headers;
+			return this;
+		}
+
+		public HttpClientBuilder body(String body) {
+			this.body = body;
+			return this;
+		}
+
+		public HttpClient build() {
+			return new HttpClient(this);
+		}
+	}
+}
+```
+
+The following test shows how we can build an HttpClient object using the builder.
+
+```java
+public class Test {
+	public static void main(String[] args) {
+		HttpClientBuilder builder = new HttpClient.HttpClientBuilder();
+		HttpClient client = builder.method("POST").url("http://test.com").body("{}").build();
+		System.out.println(client);
+	}
+}
+```
+
+```
+HttpClient [method=POST, url=http://test.com, userName=null, password=null, headers=null, body={}]
+```
+
+## Facade Pattern
+
+The Facade Pattern makes a complex system easy to use for the client application. In the following order example, we have classes for CheckStock, PlaceOrder, ShipOrder. The client has to use these 3 classes and needs to be aware of the method signatures. The Facade class will be the one handling everything instead. The following code shows the problem we are trying to solve. The client class in this case has to write out all the logic for instantiating the class.
+
+```java
+public class OrderProcessor {
+	public boolean checkStock(String name) {
+		System.out.println("Checking stock");
+		return true;
+	}
+
+	public String placeOrder(String name, int quantity) {
+		System.out.println("Order placed");
+		return "abc123";
+	}
+
+	public void shipOrder(String orderId) {
+		System.out.println("Order shipped");
+	}
+}
+
+public class Test {
+	public static void main(String[] args) {
+		OrderProcessor processor = new OrderProcessor();
+		if (processor.checkStock("Macbook")) {
+			String orderId = processor.placeOrder("Macbook", 3);
+			processor.shipOrder(orderId);
+		};
+	}
+}
+```
+
+We can instead build a Facade class that will contain all the logic of the client class. This results in a much cleaner client Test class.
+
+```java
+public class OrderFacade {
+	private OrderProcessor processor = new OrderProcessor();
+
+	public void processOrder(String name, int quantity) {
+		if (processor .checkStock(name)) {
+			String orderId = processor .placeOrder(name, quantity);
+			processor .shipOrder(orderId);
+		}
+		;
+	}
+}
+
+public class Test {
+	public static void main(String[] args) {
+		OrderFacade facade = new OrderFacade();
+		facade.processOrder("Macbook", 3);
+	}
+}
+```
+
+The limitation of using Facade is everytime the methods in our OrderProcessor class changes, we need to update our processOrder method as well.
+
+## MVC and Business Delegate
