@@ -1,6 +1,13 @@
 # Java Design Patterns
 
+https://www.udemy.com/course/java-design-patterns/
+
+# Certificate of Completion
+
+![Certificate of Completion](UC-0c19a30f-da52-431d-ab33-2481013c033c.jpg)
+
 - [Java Design Patterns](#java-design-patterns)
+- [Certificate of Completion](#certificate-of-completion)
   - [Basics](#basics)
     - [Pattern](#pattern)
     - [Pattern Catalogs](#pattern-catalogs)
@@ -33,7 +40,8 @@
   - [Prototype Pattern](#prototype-pattern)
   - [Builder Pattern](#builder-pattern)
   - [Facade Pattern](#facade-pattern)
-  - [MVC and Business Delegate](#mvc-and-business-delegate)
+  - [Business Delegate](#business-delegate)
+      - [Implementing Business Delegate](#implementing-business-delegate)
 -
 
 ## Basics
@@ -1571,4 +1579,175 @@ public class Test {
 
 The limitation of using Facade is everytime the methods in our OrderProcessor class changes, we need to update our processOrder method as well.
 
-## MVC and Business Delegate
+## Business Delegate
+
+To create the movie ticket reservation Spring project, the needed dependencies are Spring Data JDBC, MySQL Driver, Jasper and Spring Web. We start with creating the Model Class and then creating the Data Access Layer DAO wherein we will be using JdbcTemplate from Spring. The **@Repository** annotation tells Spring that a class object of TicketDaoImpl should be created at runtime and injected to other class as required.
+
+```java
+public class Ticket {
+	private int id;
+	private String movie;
+	private String screen;
+	private String seat;
+}
+
+public interface TicketDao {
+	void create(Ticket ticket);
+}
+
+@Repository
+public class TicketDaoImpl implements TicketDao {
+	private static final String sql = "insert into ticket (movie, screen, seat) values(?,?,?)";
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
+	@Override
+	public void create(Ticket ticket) {
+		jdbcTemplate.update(sql, ticket.getMovie(), ticket.getScreen(), ticket.getSeat());
+	}
+}
+```
+
+We then proceed on creating the presentation layer. This includes the controller and the view. The controller should handle the create ticket request. To send a request back, we need to define a **ModelMap** Spring parameter in order to return a message to our jsp page.
+
+```java
+@Controller
+public class TicketController {
+	@Autowired
+	private TicketDao dao;
+
+	@RequestMapping("/showCreateTicket")
+	public String showCreateTicket() {
+		return "createTicket";
+	}
+
+	@RequestMapping("/createTicket")
+	public String createTicket(Ticket ticket, ModelMap modelMap) {
+		dao.create(ticket);
+		modelMap.addAttribute("msg", "Ticket Purchased Successfully");
+		return "createTicket";
+	}
+}
+```
+
+```jsp
+<body>
+	<form action="createTicket" method="post">
+		Movie Name: <input type="text" name="movie" />
+		Screen: <input type="text" name="screen" />
+		Seat Number: <input type="text" name="seat" />
+		<input type="submit" value="purchase" />
+	</form>
+${msg}
+</body>
+```
+
+We then add the data source configuration and root context for our application in application.properties. The application will be available at `http://localhost:8080/movietickets/showCreateTicket` and we can use the UI to add a ticket to our database.
+
+```
+spring.datasource.url=jdbc:mysql://localhost:3306/mydb
+spring.datasource.username=root
+spring.datasource.password=1234
+
+spring.mvc.view.prefix=/WEB-INF/jsps/
+spring.mvc.view.suffix=.jsp
+
+server.servlet.context-path=/movietickets
+```
+
+#### Implementing Business Delegate
+
+The Business Delegate pattern is a layer or class between the presentation layer classes and DAL classes. It is responsible for handling our busienss logic. The advantages is reusability of business logic across presentation layer components. If the DAO layer throws any checked exceptions, those can be converted into BusinessException or user friendly messages and can be returned to the presentation layer. Nowadays, the Business Delegate is known as the Service layer.
+
+We create our TicketService interface and its implementation. This layer will use the services provided by the DAL hence we need to inject the TicketDao into the TicketServiceImpl classs. We annotate the TicketServiceImpl with **@Service** from Spring so that Spring will create an object of this type and inject it whereever required, in this case, to the controller.
+
+```java
+public interface TicketService {
+	void purchaseTicket(Ticket ticket);
+}
+
+@Service
+public class TicketServiceImpl implements TicketService {
+	@Autowired
+	TicketDao dao;
+
+	@Override
+	public void purchaseTicket(Ticket ticket) {
+		// Insert logic for processing payment here
+		dao.create(ticket);
+		// Sending email/SMS to user
+	}
+}
+```
+
+At this point, we can refactor our TicketController class to use our TicketService instead of directly using the dao itself.
+
+```java
+@Controller
+public class TicketController {
+	@Autowired
+	private TicketService service;
+
+	@RequestMapping("/showCreateTicket")
+	public String showCreateTicket() {
+		return "createTicket";
+	}
+
+	@RequestMapping("/createTicket")
+	public String createTicket(Ticket ticket, ModelMap modelMap) {
+		service.purchaseTicket(ticket);
+		modelMap.addAttribute("msg", "Ticket Purchased Successfully");
+		return "createTicket";
+	}
+}
+```
+
+We have been using the Ticket model class across all of our layers, making it tightly coupled across layers. If we need to make changes to any field of the Ticket, then we need to make changes across all layers. We can create a Business Object, which is a replica of the entity but we can assign different names to the fields. So if we ever need to change our Ticket entity, we can do so without impacting the whole application.
+
+```java
+package com.demiglace.patterns.movietickets.bo;
+
+public class Ticket {
+	private int id;
+	private String movieName;
+	private String screenNo;
+	private String seatNo;
+
+  ...
+}
+```
+
+We can use this Business Object inside our Controller and Services layer instead of directly using the entity. We now need to map the business object to the database entity. We need to refactor the jsp as well to use the business objects.
+
+```java
+@Service
+public class TicketServiceImpl implements TicketService {
+	@Autowired
+	TicketDao dao;
+
+	@Override
+	public void purchaseTicket(Ticket ticket) {
+		// Insert logic for processing payment here
+		com.demiglace.patterns.movietickets.entities.Ticket ticketEntity = new com.demiglace.patterns.movietickets.entities.Ticket();
+		ticketEntity.setId(ticket.getId());
+		ticketEntity.setScreen(ticket.getScreenNo());
+		ticketEntity.setMovie(ticket.getMovieName());
+		ticketEntity.setSeat(ticket.getSeatNo());
+		dao.create(ticketEntity);
+		// Sending email/SMS to user
+	}
+}
+```
+
+```jsp
+<body>
+	<form action="createTicket" method="post">
+		Movie Name: <input type="text" name="movieName" />
+		Screen: <input type="text" name="screenNo" />
+		Seat Number: <input type="text" name="seatNo" />
+		<input type="submit" value="purchase" />
+	</form>
+${msg}
+</body>
+```
